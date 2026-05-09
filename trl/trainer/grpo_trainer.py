@@ -2478,6 +2478,24 @@ class GRPOTrainer(_BaseTrainer):
         # for importance sampling
         old_per_token_logps = inputs.get("old_per_token_logps")
         old_per_token_logps = per_token_logps.detach() if old_per_token_logps is None else old_per_token_logps
+        step = self.state.global_step
+        first_old_values = old_per_token_logps.flatten()[:5].detach().float().cpu().tolist()
+        first_current_values = per_token_logps.flatten()[:5].detach().float().cpu().tolist()
+        old_sum = old_per_token_logps.detach().sum().float().item()
+        current_sum = per_token_logps.detach().sum().float().item()
+        first_advantages = advantages.flatten()[:5].detach().float().cpu().tolist()
+        advantages_sum = advantages.detach().sum().float().item()
+        logger.info(
+            "GRPO debug | step=%s | old_per_token_logps_first=%s | current_per_token_logps_first=%s | "
+            "old_sum=%.6f | current_sum=%.6f | advantages_first=%s | advantages_sum=%.6f",
+            step,
+            first_old_values,
+            first_current_values,
+            old_sum,
+            current_sum,
+            first_advantages,
+            advantages_sum,
+        )
 
         if self.off_policy_mask_threshold is not None:
             # OPSM should use inference-time logprobs to detect both sources of off-policyness:
