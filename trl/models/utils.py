@@ -24,7 +24,14 @@ import torch.nn as nn
 import transformers
 from accelerate import Accelerator
 from packaging.version import Version
-from torch.distributed.fsdp import FSDPModule
+#from torch.distributed.fsdp import FSDPModule
+#from torch.distributed.fsdp.fully_sharded_data_parallel import FullyShardedDataParallel as FSDP
+try:
+    from torch.distributed.fsdp import FSDPModule
+except ImportError:
+    # torch versions where FSDPModule is not exported at package top-level
+    from torch.distributed.fsdp.fully_sharded_data_parallel import FullyShardedDataParallel as FSDPModule
+
 from torch.distributed.fsdp.fully_sharded_data_parallel import FullyShardedDataParallel as FSDP
 from transformers import GenerationConfig, PreTrainedModel
 
