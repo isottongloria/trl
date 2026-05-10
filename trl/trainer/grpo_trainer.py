@@ -2467,6 +2467,7 @@ class GRPOTrainer(_BaseTrainer):
 
         # Compute the loss
         advantages = inputs["advantages"]
+        #print('[DEBUG ADVANTAGES]', advantages)
         # In the base GRPO implementation, advantages are expected to have shape (B,). To support subclasses that
         # provide advantages with shape (B, T) (e.g., MiniLLM), we *conditionally* unsqueeze the tensor.
         if advantages.dim() == 1:
@@ -2485,7 +2486,7 @@ class GRPOTrainer(_BaseTrainer):
         current_sum = per_token_logps.detach().sum().float().item()
         first_advantages = advantages.flatten()[:5].detach().float().cpu().tolist()
         advantages_sum = advantages.detach().sum().float().item()
-        logger.info(
+        print(
             "GRPO debug | step=%s | old_per_token_logps_first=%s | current_per_token_logps_first=%s | "
             "old_sum=%.6f | current_sum=%.6f | advantages_first=%s | advantages_sum=%.6f",
             step,
