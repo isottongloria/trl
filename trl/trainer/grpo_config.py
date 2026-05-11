@@ -166,6 +166,8 @@ class GRPOConfig(_BaseConfig):
             learning](https://huggingface.co/papers/2501.12948) use a value of `0.001`.
         num_iterations (`int`, *optional*, defaults to `1`):
             Number of iterations per batch (denoted as μ in the algorithm).
+        verbose_policy_updates (`bool`, *optional*, defaults to `False`):
+            Whether to log a `[GRPO-VERBOSE]` line for every internal policy update performed on the current rollout.
         epsilon (`float`, *optional*, defaults to `0.2`):
             Epsilon value for clipping.
         delta (`float`, *optional*):
@@ -597,6 +599,12 @@ class GRPOConfig(_BaseConfig):
     num_iterations: int = field(
         default=1,
         metadata={"help": "Number of iterations per batch (denoted as μ in the algorithm)."},
+    )
+    verbose_policy_updates: bool = field(
+        default=False,
+        metadata={
+            "help": "Whether to log a `[GRPO-VERBOSE]` line at every internal policy update over the current rollout."
+        },
     )
     epsilon: float = field(
         default=0.2,
