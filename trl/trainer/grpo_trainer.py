@@ -2479,25 +2479,6 @@ class GRPOTrainer(_BaseTrainer):
         # for importance sampling
         old_per_token_logps = inputs.get("old_per_token_logps")
         old_per_token_logps = per_token_logps.detach() if old_per_token_logps is None else old_per_token_logps
-        step = self.state.global_step
-        first_old_values = old_per_token_logps.flatten()[:5].detach().float().cpu().tolist()
-        first_current_values = per_token_logps.flatten()[:5].detach().float().cpu().tolist()
-        old_sum = old_per_token_logps.detach().sum().float().item()
-        current_sum = per_token_logps.detach().sum().float().item()
-        first_advantages = advantages.flatten()[:5].detach().float().cpu().tolist()
-        advantages_sum = advantages.detach().sum().float().item()
-        print(
-            "GRPO debug | step=%s | old_per_token_logps_first=%s | current_per_token_logps_first=%s | "
-            "old_sum=%.6f | current_sum=%.6f | advantages_first=%s | advantages_sum=%.6f",
-            step,
-            first_old_values,
-            first_current_values,
-            old_sum,
-            current_sum,
-            first_advantages,
-            advantages_sum,
-        )
-
         if self.off_policy_mask_threshold is not None:
             # OPSM should use inference-time logprobs to detect both sources of off-policyness:
             # 1. Drift from gradient updates (always present)
@@ -2648,6 +2629,50 @@ class GRPOTrainer(_BaseTrainer):
         elif self.loss_type == "vespo":
             gathered_phi_seq = self.accelerator.gather(phi_seq)
             self._metrics[mode]["vespo/phi_seq_mean"].append(gathered_phi_seq.nanmean().item())
+
+        if self.args.verbose_policy_updates and mode == "train":
+            generate_every = self.args.steps_per_generation * self.num_iterations
+            rollout_cycle_idx = self._step // generate_every
+            inner_update_idx = (self._step % generate_every) // self.args.steps_per_generation
+
+            reward_mean = self._metrics[mode]["reward"][-1] if self._metrics[mode]["reward"] else float("nan")
+            reward_std = self._metrics[mode]["reward_std"][-1] if self._metrics[mode]["reward_std"] else float("nan")
+            objective = (-loss.detach() * self.current_gradient_accumulation_steps).float()
+            objective = self.accelerator.gather(objective).nanmean().item()
+            kl = self._metrics[mode]["kl"][-1] if self._metrics[mode]["kl"] else 0.0
+            ratio_mean = self.accelerator.gather(coef_1.detach().float()).nanmean().item()
+            entropy = self._metrics[mode]["entropy"][-1] if self._metrics[mode]["entropy"] else float("nan")
+            response_length_mean = (
+                self._metrics[mode]["completions/mean_length"][-1]
+                if self._metrics[mode]["completions/mean_length"]
+                else float("nan")
+            )
+
+            if self.loss_type in ["grpo", "bnpo", "dr_grpo", "dapo", "luspo"]:
+                clip_fraction = self._metrics[mode]["clip_ratio/region_mean"][-1]
+            elif self.loss_type == "cispo":
+                clip_fraction = self._metrics[mode]["cispo_clip_ratio"][-1]
+            else:
+                clip_fraction = float("nan")
+
+            logger.info(
+                "[GRPO-VERBOSE] global_step=%s _step=%s inner_update_idx=%s rollout_cycle_idx=%s "
+                "step=%s objective=%.6f reward_mean=%.6f reward_std=%.6f kl=%.6f ratio_mean=%.6f "
+                "clip_fraction=%.6f entropy=%.6f response_length_mean=%.6f",
+                self.state.global_step,
+                self._step,
+                inner_update_idx,
+                rollout_cycle_idx,
+                self._step,
+                objective,
+                reward_mean,
+                reward_std,
+                kl,
+                ratio_mean,
+                clip_fraction,
+                entropy,
+                response_length_mean,
+            )
 
         return loss
 
